@@ -17,6 +17,12 @@ const Spreadsheet: React.FC = () => {
   const [isEditing, setIsEditing] = useState(false);
 
   const cellRefs = useRef<Map<string, HTMLInputElement>>(new Map());
+  const clipboardRef = useRef<string>('');
+
+  const copyToClipboard = useCallback((text: string) => {
+    clipboardRef.current = text;
+    navigator.clipboard.writeText(text).catch(() => {});
+  }, []);
 
   const registerCellRef = useCallback(
     (rowIdx: number, columnIdx: number, el: HTMLInputElement | null) => {
@@ -384,6 +390,8 @@ const Spreadsheet: React.FC = () => {
                 onRemoveRow={removeRow}
                 onRemoveColumn={removeColumn}
                 registerRef={registerCellRef}
+                copyToClipboard={copyToClipboard}
+                clipboardRef={clipboardRef}
               />
             ))}
           </Flex>

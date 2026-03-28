@@ -1,5 +1,5 @@
 import { Input, Box, Menu, MenuButton, MenuList, MenuItem } from '@chakra-ui/react';
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useRef, useState } from 'react';
 
 type CellState = 'unselected' | 'selected' | 'editing';
 
@@ -21,6 +21,8 @@ interface Props {
   onRemoveRow: (rowIdx: number) => void;
   onRemoveColumn: (columnIdx: number) => void;
   registerRef: (rowIdx: number, columnIdx: number, el: HTMLInputElement | null) => void;
+  copyToClipboard: (text: string) => void;
+  clipboardRef: React.RefObject<string>;
 }
 
 const isTypableKey = (e: React.KeyboardEvent): boolean => {
@@ -52,9 +54,12 @@ const Cell: React.FC<Props> = React.memo(({
   onRemoveRow,
   onRemoveColumn,
   registerRef,
+  copyToClipboard,
+  clipboardRef,
 }) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [menuPos, setMenuPos] = useState({ x: 0, y: 0 });
+  const localInputRef = useRef<HTMLInputElement | null>(null);
 
   const onChangeHandler = useCallback<React.ChangeEventHandler<HTMLInputElement>>(
     (ev) => {
@@ -73,11 +78,24 @@ const Cell: React.FC<Props> = React.memo(({
     onStartEditing(rowIdx, columnIdx);
   }, [onStartEditing, rowIdx, columnIdx]);
 
+  const selectionSnapshotRef = useRef<string | null>(null);
+  const cursorSnapshotRef = useRef<{ start: number; end: number } | null>(null);
+
   const handleContextMenu = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
+    const input = localInputRef.current;
+    if (cellState === 'editing' && input) {
+      const start = input.selectionStart ?? 0;
+      const end = input.selectionEnd ?? 0;
+      selectionSnapshotRef.current = start !== end ? input.value.slice(start, end) : null;
+      cursorSnapshotRef.current = { start, end };
+    } else {
+      selectionSnapshotRef.current = null;
+      cursorSnapshotRef.current = null;
+    }
     setMenuPos({ x: e.clientX, y: e.clientY });
     setIsMenuOpen(true);
-  }, []);
+  }, [cellState]);
 
   const closeMenu = useCallback(() => setIsMenuOpen(false), []);
 
@@ -87,6 +105,22 @@ const Cell: React.FC<Props> = React.memo(({
   const handleAddColumnRight = useCallback(() => { onAddColumnRight(columnIdx); setIsMenuOpen(false); }, [onAddColumnRight, columnIdx]);
   const handleRemoveRow = useCallback(() => { onRemoveRow(rowIdx); setIsMenuOpen(false); }, [onRemoveRow, rowIdx]);
   const handleRemoveColumn = useCallback(() => { onRemoveColumn(columnIdx); setIsMenuOpen(false); }, [onRemoveColumn, columnIdx]);
+  const handleCopy = useCallback(() => {
+    const textToCopy = selectionSnapshotRef.current ?? value;
+    copyToClipboard(textToCopy);
+    setIsMenuOpen(false);
+  }, [value, copyToClipboard]);
+  const handlePaste = useCallback(() => {
+    const pasteText = clipboardRef.current;
+    if (cursorSnapshotRef.current) {
+      const { start, end } = cursorSnapshotRef.current;
+      const newValue = value.slice(0, start) + pasteText + value.slice(end);
+      onCellChange(rowIdx, columnIdx, newValue);
+    } else {
+      onCellChange(rowIdx, columnIdx, pasteText);
+    }
+    setIsMenuOpen(false);
+  }, [onCellChange, rowIdx, columnIdx, clipboardRef, value]);
 
   const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
     if (cellState === 'selected') {
@@ -175,6 +209,7 @@ const Cell: React.FC<Props> = React.memo(({
 
   const inputRef = useCallback(
     (el: HTMLInputElement | null) => {
+      localInputRef.current = el;
       registerRef(rowIdx, columnIdx, el);
     },
     [registerRef, rowIdx, columnIdx],
@@ -221,6 +256,8 @@ const Cell: React.FC<Props> = React.memo(({
           }}
         />
         <MenuList>
+          <MenuItem onClick={handleCopy}>Copy</MenuItem>
+          <MenuItem onClick={handlePaste}>Paste</MenuItem>
           <MenuItem onClick={handleAddRowAbove}>Add row above</MenuItem>
           <MenuItem onClick={handleAddRowBelow}>Add row below</MenuItem>
           <MenuItem onClick={handleAddColumnLeft}>Add column left</MenuItem>
