@@ -78,6 +78,29 @@ const Spreadsheet: React.FC = () => {
     [],
   );
 
+  const removeRow = useCallback(
+    (rowIdx: number) => {
+      setSpreadsheetState((prev) => {
+        if (prev.length <= 1) return prev;
+        return [...prev.slice(0, rowIdx), ...prev.slice(rowIdx + 1)];
+      });
+    },
+    [],
+  );
+
+  const removeColumn = useCallback(
+    (columnIdx: number) => {
+      setSpreadsheetState((prev) => {
+        if ((prev[0]?.length ?? 0) <= 1) return prev;
+        return prev.map((row) => [
+          ...row.slice(0, columnIdx),
+          ...row.slice(columnIdx + 1),
+        ]);
+      });
+    },
+    [],
+  );
+
   return (
     <Box width="full">
       {spreadsheetState.map((row, rowIdx) => {
@@ -94,6 +117,8 @@ const Spreadsheet: React.FC = () => {
                 onAddRowBelow={addRowBelow}
                 onAddColumnLeft={addColumnLeft}
                 onAddColumnRight={addColumnRight}
+                onRemoveRow={removeRow}
+                onRemoveColumn={removeColumn}
               />
             ))}
           </Flex>
