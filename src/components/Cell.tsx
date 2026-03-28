@@ -3,12 +3,14 @@ import { AddIcon } from '@chakra-ui/icons';
 import React, { useCallback, useState } from 'react';
 
 interface Props {
+  rowIdx: number;
+  columnIdx: number;
   value: string;
-  onChange: (newValue: string) => void;
-  onAddRowAbove: () => void;
-  onAddRowBelow: () => void;
-  onAddColumnLeft: () => void;
-  onAddColumnRight: () => void;
+  onCellChange: (rowIdx: number, columnIdx: number, newValue: string) => void;
+  onAddRowAbove: (rowIdx: number) => void;
+  onAddRowBelow: (rowIdx: number) => void;
+  onAddColumnLeft: (columnIdx: number) => void;
+  onAddColumnRight: (columnIdx: number) => void;
 }
 
 const edgeButtonStyles = {
@@ -25,9 +27,11 @@ const edgeButtonStyles = {
   width: '20px',
 };
 
-const Cell: React.FC<Props> = ({
+const Cell: React.FC<Props> = React.memo(({
+  rowIdx,
+  columnIdx,
   value,
-  onChange,
+  onCellChange,
   onAddRowAbove,
   onAddRowBelow,
   onAddColumnLeft,
@@ -37,10 +41,15 @@ const Cell: React.FC<Props> = ({
 
   const onChangeHandler = useCallback<React.ChangeEventHandler<HTMLInputElement>>(
     (ev) => {
-      onChange(ev.target.value);
+      onCellChange(rowIdx, columnIdx, ev.target.value);
     },
-    [onChange],
+    [onCellChange, rowIdx, columnIdx],
   );
+
+  const handleAddRowAbove = useCallback(() => onAddRowAbove(rowIdx), [onAddRowAbove, rowIdx]);
+  const handleAddRowBelow = useCallback(() => onAddRowBelow(rowIdx), [onAddRowBelow, rowIdx]);
+  const handleAddColumnLeft = useCallback(() => onAddColumnLeft(columnIdx), [onAddColumnLeft, columnIdx]);
+  const handleAddColumnRight = useCallback(() => onAddColumnRight(columnIdx), [onAddColumnRight, columnIdx]);
 
   return (
     <Box
@@ -59,7 +68,7 @@ const Cell: React.FC<Props> = ({
         left="50%"
         transform="translateX(-50%)"
         opacity={isHovered ? 1 : 0}
-        onClick={onAddRowAbove}
+        onClick={handleAddRowAbove}
       />
 
       {/* Bottom - add row below */}
@@ -71,7 +80,7 @@ const Cell: React.FC<Props> = ({
         left="50%"
         transform="translateX(-50%)"
         opacity={isHovered ? 1 : 0}
-        onClick={onAddRowBelow}
+        onClick={handleAddRowBelow}
       />
 
       {/* Left - add column left */}
@@ -83,7 +92,7 @@ const Cell: React.FC<Props> = ({
         top="50%"
         transform="translateY(-50%)"
         opacity={isHovered ? 1 : 0}
-        onClick={onAddColumnLeft}
+        onClick={handleAddColumnLeft}
       />
 
       {/* Right - add column right */}
@@ -95,10 +104,12 @@ const Cell: React.FC<Props> = ({
         top="50%"
         transform="translateY(-50%)"
         opacity={isHovered ? 1 : 0}
-        onClick={onAddColumnRight}
+        onClick={handleAddColumnRight}
       />
     </Box>
   );
-};
+});
+
+Cell.displayName = 'Cell';
 
 export default Cell;

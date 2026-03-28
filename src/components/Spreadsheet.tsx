@@ -12,7 +12,23 @@ const Spreadsheet: React.FC = () => {
     _.times(NUM_ROWS, () => _.times(NUM_COLUMNS, _.constant(''))),
   );
 
-  const numColumns = spreadsheetState[0]?.length ?? 0;
+  const onCellChange = useCallback(
+    (rowIdx: number, columnIdx: number, newValue: string) => {
+      setSpreadsheetState((prev) => {
+        const newRow = [
+          ...prev[rowIdx].slice(0, columnIdx),
+          newValue,
+          ...prev[rowIdx].slice(columnIdx + 1),
+        ];
+        return [
+          ...prev.slice(0, rowIdx),
+          newRow,
+          ...prev.slice(rowIdx + 1),
+        ];
+      });
+    },
+    [],
+  );
 
   const addRowAbove = useCallback(
     (rowIdx: number) => {
@@ -70,23 +86,14 @@ const Spreadsheet: React.FC = () => {
             {row.map((cellValue, columnIdx) => (
               <Cell
                 key={`${rowIdx}/${columnIdx}`}
+                rowIdx={rowIdx}
+                columnIdx={columnIdx}
                 value={cellValue}
-                onChange={(newValue: string) => {
-                  const newRow = [
-                    ...spreadsheetState[rowIdx].slice(0, columnIdx),
-                    newValue,
-                    ...spreadsheetState[rowIdx].slice(columnIdx + 1),
-                  ];
-                  setSpreadsheetState([
-                    ...spreadsheetState.slice(0, rowIdx),
-                    newRow,
-                    ...spreadsheetState.slice(rowIdx + 1),
-                  ]);
-                }}
-                onAddRowAbove={() => addRowAbove(rowIdx)}
-                onAddRowBelow={() => addRowBelow(rowIdx)}
-                onAddColumnLeft={() => addColumnLeft(columnIdx)}
-                onAddColumnRight={() => addColumnRight(columnIdx)}
+                onCellChange={onCellChange}
+                onAddRowAbove={addRowAbove}
+                onAddRowBelow={addRowBelow}
+                onAddColumnLeft={addColumnLeft}
+                onAddColumnRight={addColumnRight}
               />
             ))}
           </Flex>
