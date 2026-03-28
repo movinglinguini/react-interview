@@ -28,10 +28,10 @@ const isTypableKey = (e: React.KeyboardEvent): boolean => {
   return e.key.length === 1;
 };
 
-const borderColors: Record<CellState, string> = {
-  unselected: 'inherit',
-  selected: 'blue.400',
-  editing: 'green.400',
+const shadowColors: Record<CellState, string> = {
+  unselected: '',
+  selected: '#4299E1',
+  editing: '#48BB78',
 };
 
 const Cell: React.FC<Props> = React.memo(({
@@ -181,7 +181,7 @@ const Cell: React.FC<Props> = React.memo(({
   );
 
   const isSelected = cellState !== 'unselected';
-  const borderColor = borderColors[cellState];
+  const shadowColor = shadowColors[cellState];
 
   return (
     <Box position="relative" onContextMenu={handleContextMenu}>
@@ -196,13 +196,15 @@ const Cell: React.FC<Props> = React.memo(({
         onDoubleClick={handleDoubleClick}
         readOnly={cellState !== 'editing'}
         cursor={cellState === 'editing' ? 'text' : 'default'}
-        borderColor={borderColor}
-        borderWidth={isSelected ? '2px' : '1px'}
-        boxShadow={isSelected ? `0 0 0 1px var(--chakra-colors-${borderColor.replace('.', '-')})` : 'none'}
-        _hover={{ borderColor: isSelected ? borderColor : undefined }}
+        borderColor={isSelected ? 'transparent' : 'inherit'}
+        outline={isSelected ? `2px solid ${shadowColor}` : 'none'}
+        outlineOffset="-2px"
+        _hover={{ borderColor: isSelected ? 'transparent' : undefined }}
         _focus={{
-          borderColor,
-          boxShadow: isSelected ? `0 0 0 1px var(--chakra-colors-${borderColor.replace('.', '-')})` : 'none',
+          borderColor: isSelected ? 'transparent' : 'inherit',
+          boxShadow: 'none',
+          outline: isSelected ? `2px solid ${shadowColor}` : 'none',
+          outlineOffset: '-2px',
         }}
       />
 

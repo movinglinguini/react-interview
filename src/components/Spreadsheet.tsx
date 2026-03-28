@@ -1,4 +1,4 @@
-import { Box, Flex } from '@chakra-ui/react';
+import { Box, Button, Flex, Center, HStack, Text } from '@chakra-ui/react';
 import _ from 'lodash';
 import React, { useCallback, useRef, useState } from 'react';
 
@@ -177,11 +177,193 @@ const Spreadsheet: React.FC = () => {
     return isEditing ? 'editing' : 'selected';
   };
 
+  const numColumns = spreadsheetState[0]?.length ?? 0;
+  const selectedValue = selectedCell
+    ? spreadsheetState[selectedCell.row]?.[selectedCell.col] ?? ''
+    : '';
+
+  const saveAsCsv = useCallback(() => {
+    const data = spreadsheetState;
+
+    // Find last row with content
+    let lastRow = -1;
+    let lastCol = -1;
+    for (let r = 0; r < data.length; r++) {
+      for (let c = 0; c < data[r].length; c++) {
+        if (data[r][c] !== '') {
+          if (r > lastRow) lastRow = r;
+          if (c > lastCol) lastCol = c;
+        }
+      }
+    }
+
+    if (lastRow === -1) return; // nothing to save
+
+    const csvRows: string[] = [];
+    for (let r = 0; r <= lastRow; r++) {
+      const cells: string[] = [];
+      for (let c = 0; c <= lastCol; c++) {
+        const val = data[r][c];
+        if (val.includes(',') || val.includes('"') || val.includes('\n')) {
+          cells.push(`"${val.replace(/"/g, '""')}"`);
+        } else {
+          cells.push(val);
+        }
+      }
+      csvRows.push(cells.join(','));
+    }
+
+    const blob = new Blob([csvRows.join('\n')], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'spreadsheet.csv';
+    a.click();
+    URL.revokeObjectURL(url);
+  }, [spreadsheetState]);
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const loadCsv = useCallback(() => {
+    fileInputRef.current?.click();
+  }, []);
+
+  const handleFileChange = useCallback<React.ChangeEventHandler<HTMLInputElement>>(
+    (e) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        const text = ev.target?.result as string;
+        const rows = text.split('\n').map((line) => {
+          const cells: string[] = [];
+          let i = 0;
+          while (i < line.length) {
+            if (line[i] === '"') {
+              i++;
+              let val = '';
+              while (i < line.length) {
+                if (line[i] === '"' && line[i + 1] === '"') {
+                  val += '"';
+                  i += 2;
+                } else if (line[i] === '"') {
+                  i++;
+                  break;
+                } else {
+                  val += line[i];
+                  i++;
+                }
+              }
+              cells.push(val);
+              if (line[i] === ',') i++;
+            } else {
+              const next = line.indexOf(',', i);
+              if (next === -1) {
+                cells.push(line.slice(i));
+                break;
+              } else {
+                cells.push(line.slice(i, next));
+                i = next + 1;
+              }
+            }
+          }
+          return cells;
+        });
+
+        // Remove trailing empty row from final newline
+        if (rows.length > 0 && rows[rows.length - 1].length === 1 && rows[rows.length - 1][0] === '') {
+          rows.pop();
+        }
+
+        const numRows = Math.max(NUM_ROWS, rows.length);
+        const maxCols = rows.reduce((max, row) => Math.max(max, row.length), 0);
+        const numCols = Math.max(NUM_COLUMNS, maxCols);
+
+        const padded = _.times(numRows, (r) => {
+          const row = rows[r] ?? [];
+          return _.times(numCols, (c) => row[c] ?? '');
+        });
+
+        setSpreadsheetState(padded);
+        setSelectedCell(null);
+        setIsEditing(false);
+      };
+      reader.readAsText(file);
+
+      // Reset so the same file can be loaded again
+      e.target.value = '';
+    },
+    [],
+  );
+
   return (
     <Box width="full">
+      {/* Status toolbar */}
+      <HStack
+        padding="2"
+        marginBottom="2"
+        bg="gray.50"
+        borderWidth="1px"
+        borderColor="gray.200"
+        borderRadius="md"
+        spacing="4"
+        minHeight="40px"
+      >
+        <HStack spacing="1">
+          <Text fontWeight="bold" fontSize="sm">Cell:</Text>
+          <Text fontSize="sm">
+            {selectedCell
+              ? `Row ${selectedCell.row + 1}, Col ${selectedCell.col + 1}`
+              : 'None'}
+          </Text>
+        </HStack>
+        <HStack spacing="1">
+          <Text fontWeight="bold" fontSize="sm">Value:</Text>
+          <Text fontSize="sm">{selectedCell ? selectedValue || '(empty)' : '-'}</Text>
+        </HStack>
+      </HStack>
+      <HStack
+        padding="2"
+        marginBottom="2"
+        bg="gray.50"
+        borderWidth="1px"
+        borderColor="gray.200"
+        borderRadius="md"
+        spacing="4"
+        minHeight="40px"
+      >
+        <Button size="sm" colorScheme="blue" onClick={saveAsCsv}>
+          Save as CSV
+        </Button>
+        <Button size="sm" colorScheme="green" onClick={loadCsv}>
+          Load CSV
+        </Button>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept=".csv"
+          style={{ display: 'none' }}
+          onChange={handleFileChange}
+        />
+      </HStack>
+
+      {/* Column headers */}
+      <Flex>
+        <Center minWidth="40px" height="40px" bg="gray.100" fontWeight="bold" fontSize="sm" borderWidth="1px" borderColor="gray.200" />
+        {_.times(numColumns, (columnIdx) => (
+          <Center key={columnIdx} flex="1" height="40px" bg="gray.100" fontWeight="bold" fontSize="sm" borderWidth="1px" borderColor="gray.200">
+            {columnIdx + 1}
+          </Center>
+        ))}
+      </Flex>
       {spreadsheetState.map((row, rowIdx) => {
         return (
           <Flex key={String(rowIdx)}>
+            {/* Row header */}
+            <Center minWidth="40px" height="40px" bg="gray.100" fontWeight="bold" fontSize="sm" borderWidth="1px" borderColor="gray.200">
+              {rowIdx + 1}
+            </Center>
             {row.map((cellValue, columnIdx) => (
               <Cell
                 key={`${rowIdx}/${columnIdx}`}
